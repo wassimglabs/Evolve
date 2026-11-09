@@ -8,12 +8,14 @@ import { LargeHeader } from '@/components/large-header';
 import { Screen } from '@/components/screen';
 import { SectionLabel } from '@/components/section-label';
 import { Segmented } from '@/components/segmented';
+import { StatusPill } from '@/components/status-pill';
 import { Switch } from '@/components/switch';
 import { Text } from '@/components/text';
 import { haptics } from '@/lib/haptics';
 import { VIEWPORT_OPTIONS } from '@/lib/viewport';
 import { useDeveloperCounts } from '@/hooks/use-developer-counts';
 import { useBooleanSetting, useSetting } from '@/hooks/use-setting';
+import { useGoogleAccount } from '@/integrations/google/use-google-account';
 import { colors } from '@/theme/tokens';
 import { fonts } from '@/theme/fonts';
 
@@ -42,6 +44,7 @@ export default function SettingsScreen() {
   const [storedViewport, setStoredViewport] = useSetting('dev_viewport', 'device');
   const { line, reload } = useDeveloperCounts();
   const [busy, setBusy] = useState(false);
+  const google = useGoogleAccount();
 
   const dailyLimit = Number(storedLimit);
   const setDailyLimit = useCallback(
@@ -126,6 +129,67 @@ export default function SettingsScreen() {
           <Button variant="primary" size="block" onPress={() => router.push('/me/data')}>
             Manage all records
           </Button>
+        </Card>
+      </View>
+
+      <View style={styles.section}>
+        <SectionLabel>Connected accounts</SectionLabel>
+        <Card variant="padded" style={styles.accountCard}>
+          <View style={styles.accountRow}>
+            <View style={styles.rowLeft}>
+              <Text style={styles.rowTitle}>Google</Text>
+              {google.account ? (
+                <Text style={styles.caption}>{google.account.email}</Text>
+              ) : null}
+            </View>
+            <StatusPill
+              label={
+                google.busy === 'connecting'
+                  ? 'Connecting'
+                  : google.busy === 'disconnecting'
+                    ? 'Disconnecting'
+                    : google.status === 'connected'
+                      ? 'Connected'
+                      : google.status === 'reauth_required'
+                        ? 'Reconnect needed'
+                        : google.status === 'error'
+                          ? 'Error'
+                          : google.status === 'loading'
+                            ? 'Loading'
+                            : 'Not connected'
+              }
+              tone={google.status === 'connected' ? 'positive' : 'neutral'}
+            />
+          </View>
+          {google.configurationMessage ? (
+            <Text style={styles.caption}>{google.configurationMessage}</Text>
+          ) : null}
+          {google.error ? <Text style={styles.accountError}>{google.error}</Text> : null}
+          {google.notice ? <Text style={styles.accountNotice}>{google.notice}</Text> : null}
+          <View style={styles.accountActions}>
+            {google.account ? (
+              <Button
+                variant="secondary"
+                size="compact"
+                disabled={google.busy !== null}
+                onPress={() =>
+                  Alert.alert('Disconnect Google?', 'Google account access will be removed from this device.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Disconnect', style: 'destructive', onPress: () => void google.disconnect() },
+                  ])
+                }>
+                {google.busy === 'disconnecting' ? 'Disconnecting…' : 'Disconnect'}
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="compact"
+                disabled={!google.canConnect || google.busy !== null || google.status === 'loading'}
+                onPress={() => void google.connect()}>
+                {google.busy === 'connecting' ? 'Connecting…' : 'Connect Google'}
+              </Button>
+            )}
+          </View>
         </Card>
       </View>
 
@@ -254,6 +318,30 @@ const styles = StyleSheet.create({
   },
   dataCard: {
     gap: 10,
+  },
+  accountCard: {
+    gap: 10,
+  },
+  accountRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  accountActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  accountError: {
+    color: colors.danger.text,
+    fontSize: 12.5,
+    fontFamily: fonts.inter,
+  },
+  accountNotice: {
+    color: colors.accent,
+    fontSize: 12.5,
+    fontFamily: fonts.inter,
   },
   devCard: {
     gap: 10,
