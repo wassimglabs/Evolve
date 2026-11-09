@@ -31,7 +31,7 @@ export default function HabitsScreen() {
             size="compact"
             icon={<Icon name="plus" size={16} color={colors.onAccent} strokeWidth={2.4} />}
             labelStyle={{ fontSize: 13.5 }}
-            onPress={() => router.push({ pathname: '/me/data', params: { type: 'Habits' } })}>
+            onPress={() => router.push({ pathname: '/task-form', params: { type: 'Habits' } })}>
             New habit
           </Button>
         }
@@ -43,7 +43,7 @@ export default function HabitsScreen() {
         <EmptyState
           title="No habits in this category"
           caption="Create a habit to start tracking your own history."
-          action={{ label: 'Add habit', onPress: () => router.push({ pathname: '/me/data', params: { type: 'Habits' } }) }}
+          action={{ label: 'Add habit', onPress: () => router.push({ pathname: '/task-form', params: { type: 'Habits' } }) }}
         />
       ) : null}
 

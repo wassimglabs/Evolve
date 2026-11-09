@@ -68,7 +68,7 @@ export default function PlanScreen() {
           <Button
             variant="secondary"
             size="compact"
-            onPress={() => router.push({ pathname: '/me/data', params: { type: 'Tasks' } })}>
+            onPress={() => router.push({ pathname: '/task-form', params: { type: 'Tasks' } })}>
             Add task
           </Button>
         </View>

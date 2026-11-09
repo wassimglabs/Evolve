@@ -52,7 +52,7 @@ export default function TodayScreen() {
             <Button
               variant="primary"
               size="compact"
-              onPress={() => router.push({ pathname: '/me/data', params: { type: 'Tasks' } })}>
+              onPress={() => router.push({ pathname: '/task-form', params: { type: 'Tasks' } })}>
               Add task
             </Button>
           </View>

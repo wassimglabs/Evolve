@@ -49,7 +49,7 @@ export default function LanesScreen() {
           <Button
             variant="secondary"
             size="compact"
-            onPress={() => router.push({ pathname: '/me/data', params: { type: 'Tasks', lane } })}>
+            onPress={() => router.push({ pathname: '/task-form', params: { type: 'Tasks', lane } })}>
             Add task
           </Button>
         </View>
@@ -75,7 +75,7 @@ export default function LanesScreen() {
           <EmptyState
             title="No tasks in this lane"
             caption="Add a task and it will appear here."
-            action={{ label: 'Add task', onPress: () => router.push({ pathname: '/me/data', params: { type: 'Tasks', lane } }) }}
+            action={{ label: 'Add task', onPress: () => router.push({ pathname: '/task-form', params: { type: 'Tasks', lane } }) }}
           />
         )}
       </View>

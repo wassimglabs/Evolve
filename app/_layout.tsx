@@ -56,6 +56,13 @@ export default function RootLayout() {
           screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
+            name="task-form"
+            options={{
+              presentation: 'modal',
+              animation: 'slide_from_bottom',
+            }}
+          />
+          <Stack.Screen
             name="checkin"
             options={{
               presentation: 'modal',

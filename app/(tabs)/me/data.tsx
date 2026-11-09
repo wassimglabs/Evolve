@@ -8,10 +8,11 @@ import { EmptyState } from '@/components/empty-state';
 import { LargeHeader } from '@/components/large-header';
 import { Screen } from '@/components/screen';
 import { Segmented } from '@/components/segmented';
+import { TaskHabitForm } from '@/components/task-habit-form';
 import { Text } from '@/components/text';
 import { useDbQuery } from '@/hooks/use-db-query';
-import { listHabits, createHabit, updateHabit, deleteHabit } from '@/repositories/habits';
-import { listTasks, createTask, updateTask, deleteTask } from '@/repositories/tasks';
+import { listHabits, deleteHabit } from '@/repositories/habits';
+import { listTasks, updateTask, deleteTask } from '@/repositories/tasks';
 import {
   listTimetableEntries,
   createTimetableEntry,
@@ -36,9 +37,7 @@ import { listLanes, updateLane } from '@/repositories/lanes';
 
 const DATA_TYPES = ['Tasks', 'Habits', 'Habit logs', 'Timetable', 'Exceptions', 'Jobs', 'Ideas', 'Check-ins', 'Lane goals'] as const;
 const LANES = ['study', 'solven', 'career', 'life'] as const;
-const CATEGORIES = ['Physical', 'Intellectual', 'Professional', 'Communication'] as const;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
-const WEEKDAY_NUMBERS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 type DataType = (typeof DATA_TYPES)[number];
 type DataRows = {
@@ -279,61 +278,6 @@ export default function DataScreen() {
     const title = form.title.trim();
     if (form.type !== 'Lane goals' && form.type !== 'Check-ins' && form.type !== 'Habit logs' && form.type !== 'Exceptions' && !title) {
       Alert.alert('Title required', 'Enter a name before saving.');
-      return;
-    }
-
-    if (form.type === 'Tasks') {
-      const estimate = form.estimate.trim() ? Number(form.estimate) : null;
-      if (estimate !== null && (!Number.isInteger(estimate) || estimate < 1 || estimate > 1440)) {
-        Alert.alert('Invalid estimate', 'Enter a whole number of minutes from 1 to 1440.');
-        return;
-      }
-      if (form.dueDate && !isDate(form.dueDate)) {
-        Alert.alert('Invalid due date', 'Use YYYY-MM-DD, for example 2026-11-09.');
-        return;
-      }
-      if (form.scheduledDate && !isDate(form.scheduledDate)) {
-        Alert.alert('Invalid scheduled date', 'Use YYYY-MM-DD, for example 2026-11-09.');
-        return;
-      }
-      if (form.scheduledTime && !isTime(form.scheduledTime)) {
-        Alert.alert('Invalid scheduled time', 'Use 24-hour time, such as 09:30.');
-        return;
-      }
-      if (form.scheduledTime && !form.scheduledDate) {
-        Alert.alert('Scheduled date required', 'Choose a scheduled date before setting a time.');
-        return;
-      }
-      const input = {
-        title,
-        lane: form.lane,
-        due_date: form.dueDate || null,
-        est_minutes: estimate,
-        scheduled_date: form.scheduledDate || null,
-        scheduled_start_min: form.scheduledTime ? timeToMinutes(form.scheduledTime) : null,
-      };
-      await persist(() => (form.id ? updateTask(form.id, input) : createTask(input)));
-      return;
-    }
-
-    if (form.type === 'Habits') {
-      if (form.days.length === 0) {
-        Alert.alert('Choose days', 'Select at least one weekday for this habit.');
-        return;
-      }
-      if (form.preferredTime && !isTime(form.preferredTime)) {
-        Alert.alert('Invalid time', 'Use 24-hour time, such as 07:30.');
-        return;
-      }
-      const input = {
-        name: title,
-        category: form.category,
-        days: [...form.days].sort((a, b) => a - b).join(','),
-        min_target: form.minTarget,
-        full_target: form.fullTarget,
-        preferred_time: form.preferredTime || null,
-      };
-      await persist(() => (form.id ? updateHabit(form.id, input) : createHabit(input)));
       return;
     }
 
@@ -771,6 +715,29 @@ export default function DataScreen() {
 
       <Modal visible={form !== null} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setForm(null)}>
         {form ? (
+          form.type === 'Tasks' || form.type === 'Habits' ? (
+            <TaskHabitForm
+              key={`${form.type}:${form.id ?? 'new'}`}
+              type={form.type}
+              recordId={form.id}
+              initialValues={{
+                title: form.title,
+                lane: form.lane,
+                dueDate: form.dueDate,
+                estimate: form.estimate,
+                scheduledDate: form.scheduledDate,
+                scheduledTime: form.scheduledTime,
+                category: form.category,
+                days: form.days,
+                minTarget: form.minTarget,
+                fullTarget: form.fullTarget,
+                preferredTime: form.preferredTime,
+              }}
+              embedded
+              onCancel={() => setForm(null)}
+              onSaved={() => setForm(null)}
+            />
+          ) : (
           <View style={styles.modal}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>{form.id ? `Edit ${itemLabel(form.type)}` : `New ${itemLabel(form.type)}`}</Text>
@@ -781,42 +748,6 @@ export default function DataScreen() {
             <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
               {form.type !== 'Lane goals' && form.type !== 'Check-ins' && form.type !== 'Habit logs' && form.type !== 'Exceptions' ? (
                 <Field label="Title" value={form.title} onChangeText={(title) => setForm({ ...form, title })} />
-              ) : null}
-              {form.type === 'Tasks' ? (
-                <>
-                  <ChoiceField label="Lane" options={LANES} value={form.lane} onChange={(lane) => setForm({ ...form, lane })} />
-                  <Field label="Due date (YYYY-MM-DD)" value={form.dueDate} onChangeText={(dueDate) => setForm({ ...form, dueDate })} placeholder="Optional" />
-                  <Field label="Estimate (minutes)" value={form.estimate} onChangeText={(estimate) => setForm({ ...form, estimate })} keyboardType="number-pad" placeholder="Optional" />
-                  <Field label="Scheduled date (YYYY-MM-DD)" value={form.scheduledDate} onChangeText={(scheduledDate) => setForm({ ...form, scheduledDate })} placeholder="Optional" />
-                  <Field label="Scheduled time (HH:MM)" value={form.scheduledTime} onChangeText={(scheduledTime) => setForm({ ...form, scheduledTime })} placeholder="Optional" />
-                </>
-              ) : null}
-              {form.type === 'Habits' ? (
-                <>
-                  <ChoiceField label="Category" options={CATEGORIES} value={form.category} onChange={(category) => setForm({ ...form, category })} />
-                  <View style={styles.formField}>
-                    <Text style={styles.fieldLabel}>Days</Text>
-                    <View style={styles.dayChoices}>
-                      {WEEKDAYS.map((day, index) => {
-                        const weekday = WEEKDAY_NUMBERS[index];
-                        const selected = form.days.includes(weekday);
-                        return (
-                          <Pressable
-                            key={day}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected }}
-                            onPress={() => setForm({ ...form, days: selected ? form.days.filter((value) => value !== weekday) : [...form.days, weekday] })}
-                            style={[styles.dayChoice, selected && styles.selectedChoice]}>
-                            <Text style={[styles.choiceText, selected && styles.selectedChoiceText]}>{day}</Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
-                  <Field label="Minimum target" value={form.minTarget} onChangeText={(minTarget) => setForm({ ...form, minTarget })} placeholder="brief" />
-                  <Field label="Full target" value={form.fullTarget} onChangeText={(fullTarget) => setForm({ ...form, fullTarget })} placeholder="full" />
-                  <Field label="Preferred time (HH:MM)" value={form.preferredTime} onChangeText={(preferredTime) => setForm({ ...form, preferredTime })} placeholder="Optional" />
-                </>
               ) : null}
               {form.type === 'Jobs' ? (
                 <>
@@ -922,6 +853,7 @@ export default function DataScreen() {
               </Button>
             </ScrollView>
           </View>
+          )
         ) : null}
       </Modal>
     </Screen>
