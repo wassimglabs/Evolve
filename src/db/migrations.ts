@@ -88,6 +88,62 @@ export const MIGRATIONS: readonly string[] = [
     connected_at TEXT NOT NULL
   );
   `,
+
+  // 003 - real data: habit schedule days + tasks / lanes / jobs / content ideas.
+  // Additive only: `habits.category` already exists in 001, so only `days` is
+  // added. Lanes are seeded once and survive "Wipe data" (like settings).
+  `
+  ALTER TABLE habits ADD COLUMN days TEXT NOT NULL DEFAULT '1,2,3,4,5,6,7';
+
+  CREATE TABLE IF NOT EXISTS lanes (
+    id TEXT PRIMARY KEY NOT NULL,
+    weekly_min_minutes INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
+  INSERT OR IGNORE INTO lanes (id, weekly_min_minutes, created_at) VALUES
+    ('study', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    ('solven', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    ('career', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    ('life', 0, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+
+  CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    lane TEXT NOT NULL CHECK (lane IN ('study', 'solven', 'career', 'life')),
+    due_date TEXT,
+    est_minutes INTEGER,
+    scheduled_date TEXT,
+    scheduled_start_min INTEGER,
+    done INTEGER NOT NULL DEFAULT 0,
+    source TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tasks_lane ON tasks (lane);
+  CREATE INDEX IF NOT EXISTS idx_tasks_scheduled_date ON tasks (scheduled_date);
+
+  CREATE TABLE IF NOT EXISTS jobs (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    company TEXT NOT NULL,
+    link TEXT,
+    status TEXT NOT NULL DEFAULT 'saved' CHECK (status IN ('saved', 'applied', 'interview', 'offer', 'rejected')),
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS content_ideas (
+    id TEXT PRIMARY KEY NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    status TEXT NOT NULL DEFAULT 'idea' CHECK (status IN ('idea', 'drafted', 'posted')),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  `,
 ];
 
 /** Runs pending migrations. Idempotent; call as often as app start. */

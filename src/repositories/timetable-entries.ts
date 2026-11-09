@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import { getDb } from '@/db/client';
+import { notify } from '@/db/store';
 import type { TimetableEntry, TimetableEntryInput } from '@/db/types';
 import { nowIso } from '@/lib/date';
 
@@ -19,6 +20,7 @@ export async function createTimetableEntry(input: TimetableEntryInput): Promise<
     entry.kind,
     entry.created_at,
   );
+  notify('timetable');
   return entry;
 }
 
@@ -45,9 +47,11 @@ export async function updateTimetableEntry(
     `UPDATE timetable_entries SET ${sets.map(([column]) => `${column} = ?`).join(', ')} WHERE id = ?;`,
     [...sets.map(([, value]) => value), id],
   );
+  notify('timetable');
 }
 
 export async function deleteTimetableEntry(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(`DELETE FROM timetable_entries WHERE id = ?;`, id);
+  notify('timetable');
 }

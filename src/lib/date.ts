@@ -34,3 +34,17 @@ export function timeToMinutes(time: string): number {
   const [h, m] = time.split(':');
   return Number(h) * 60 + Number(m);
 }
+
+/** Local 'YYYY-MM-DD' of a Date shifted by n days. */
+export function dateOffset(base: Date, days: number): string {
+  const next = new Date(base);
+  next.setDate(next.getDate() + days);
+  return toDateString(next);
+}
+
+/** Live device date like "Monday, 9 Nov" (English, weekday long + day + month short). */
+export function longDayShortMonth(date: Date = new Date()): string {
+  const weekday = date.toLocaleDateString('en-US', { weekday: 'long' });
+  const month = date.toLocaleDateString('en-US', { month: 'short' });
+  return `${weekday}, ${date.getDate()} ${month}`;
+}

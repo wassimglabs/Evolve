@@ -19,21 +19,30 @@ npx expo start --dev-client
 
 ```
 app/                      # Expo Router routes (file-based routing)
-  _layout.tsx             # Root stack (+ opens the DB / runs migrations on start)
+  _layout.tsx             # Root stack: loads fonts, opens the DB, checkin modal
+  checkin.tsx             # Evening check-in (full-screen modal, no tab bar)
   (tabs)/
-    _layout.tsx           # Bottom tab bar (Today/Schedule/Habits/Insights/Settings)
-    index.tsx             # Today (placeholder)
-    schedule.tsx          # Schedule (placeholder)
-    habits.tsx            # Habits (placeholder)
-    insights.tsx          # Insights (placeholder)
-    settings.tsx          # Connected accounts + "Developer" sanity card
+    _layout.tsx           # 5 tabs with a custom tab bar (Today/Plan/Lanes/Coach/Me)
+    index.tsx             # Today
+    plan.tsx              # Plan
+    coach.tsx             # Coach
+    lanes/
+      index.tsx           # Lanes
+      habits.tsx          # Habits sub-screen (Lanes tab highlighted)
+    me/
+      index.tsx           # Me
+      insights.tsx        # Insights sub-screen (Me tab highlighted)
+      settings.tsx        # Settings sub-screen (Me tab highlighted)
 src/
-  components/             # Screen, Text, Card, Button (the only UI primitives)
-  theme/                  # tokens.ts (colors/spacing/radius/font sizes) + useTheme()
+  components/             # Icon, Screen, LargeHeader, Card, NavRow, Button, Switch,
+                          # Segmented, Tag, SampleChip, SectionLabel, ProgressRing/Bar,
+                          # Dot, StatusPill, EmptyState, TabBar
+  hooks/                  # useTodayModel/usePlanModel/... + useSetting (settings-backed controls)
+  theme/                  # tokens.ts (spec tokens) + fonts.ts + type.ts (type scale)
+  lib/                    # haptics.ts, date.ts
   db/                     # client.ts (open + wipe + counts), migrations.ts, types.ts
   repositories/           # one typed file per table, plain functions, no ORM
-    integrations/google/    # Google OAuth and local credential lifecycle
-    lib/                    # date/time helpers
+  integrations/google/    # Google OAuth and local credential lifecycle
 scripts/                  # reset-project.js (template tool, optional)
 ```
 
@@ -46,7 +55,9 @@ Notes on structure choices (simplest-option decisions):
 
 ## Database
 
-Local SQLite via `expo-sqlite` (`evolve.db`, WAL mode). Google connection metadata is stored locally in SQLite; OAuth tokens are stored in Expo SecureStore. Google linking is device-local and does not sign a user into an Evolve account or sync data to a backend.
+Local SQLite via `expo-sqlite` (`evolve.db`, WAL mode). Screens use records saved on this device and show empty states when you have not entered data. There are no built-in demo records. Google connection metadata is stored locally in SQLite; OAuth tokens are stored in Expo SecureStore. Google linking is device-local and does not sign a user into an Evolve account or sync data to a backend.
+
+Use **Me → Manage all records** to create, edit, and delete tasks, habits, timetable entries, jobs, content ideas, check-ins, and lane goals. Mark tasks complete and log a habit as minimum or full for today. Deleting a habit also removes its associated habit logs. This app is local-only; records do not sync between devices.
 
 Migrations live in `src/db/migrations.ts` as an **ordered array of SQL strings** tracked in a `schema_version` table. Each entry runs exactly once, in a transaction, on app start; re-running is a no-op. To change the schema, append a new migration — never edit old ones.
 
@@ -61,7 +72,21 @@ Migrations live in `src/db/migrations.ts` as an **ordered array of SQL strings**
 - Free-form string enums (`kind`, `type`, `level`, `min_target`, `full_target`, `category`) are plain `TEXT` for now — values like `class/work`, `skipped/min/full` are conventions, sloppily not enforced by the DB yet.
 - **`habit_logs` is insert-only by construction of the product** — history is never rewritten from the UI; the log repository's `update`/`delete` exist for tooling parity and are intentionally unused.
 - The `settings` table is a key/value store; repository "get by id" is get by key, "create" is a plain insert (no upsert).
-- Wiping (`wipeAllData` in `src/db/client.ts`) deletes **data rows only** — the schema and migration history stay intact.
+- Wiping (`wipeAllData` in `src/db/client.ts`) deletes **data rows only** — the schema, migration history and the `settings` table stay intact.
+
+## UI decisions
+
+Choices made while implementing the UI spec (section 5 of the design doc, "pick the simplest option that keeps the look identical"):
+
+- **`src/theme/tokens.ts` is byte-exact from the spec.** Font family names live in `src/theme/fonts.ts` and the 32pt title style in `src/theme/type.ts`, so tokens.ts did not need extra exports. Font weight is carried by the family (e.g. `Inter_500Medium`), so `fontWeight` is not set alongside `fontFamily`.
+- **Tab-bar highlighting for sub-screens** is structural: Habits lives inside the Lanes tab stack (`app/(tabs)/lanes/habits.tsx`) and Insights/Settings inside the Me tab stack, so the tab bar stays visible and the parent tab is highlighted natively. The previous tabs (`schedule`, root-level `habits`/`insights`/`settings`) were replaced by the spec's structure.
+- **Life lane week value** (`Life · this week` → "2 h of 2 h", ratio 1.0) was not specified; picked a plausible filled value. All other lane numbers come from the spec.
+- **Deadline rows** all have their 1pt top divider (including the first) — literal reading of "each: … top border".
+- **Coach context chips** are small pills (~26pt) as drawn in the spec; the 44pt minimum applies to the quick-action chips and input.
+- **Stepper gap** is 6pt (unspecified in the spec); glyph buttons clamp at 0–10 and dim at the bounds.
+- **Check-in save** writes through `createDailyCheckin` / `updateDailyCheckin` (existing row found by today's local date), fires the success haptic, then dismisses. The subtitle is calculated from today's scheduled habits and logs.
+- **`wipeAllData` no longer clears the `settings` table** (spec section 11: wipe must not delete settings). Signature unchanged.
+- The old `useTheme`/light-mode plumbing (`use-theme.ts`, `use-color-scheme*.ts`) and unused primitives (`text`, `list-row`, `timeline-row`, `skeleton`, `segmented-control`, `connected-account-card`) were removed; the Google integration modules stay untouched (unused by UI for now).
 
 ## Google account linking setup
 

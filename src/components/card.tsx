@@ -1,35 +1,46 @@
-import { StyleSheet, View, type ViewProps } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import type { ReactNode } from 'react';
 
-import { useTheme } from '@/theme/use-theme';
+import { colors } from '@/theme/tokens';
 
-export type CardProps = ViewProps & {
-  tone?: 'default' | 'highlight';
-};
-
-export function Card({ style, tone = 'default', ...rest }: CardProps) {
-  const t = useTheme();
-  const isHighlight = tone === 'highlight';
-
+/**
+ * surface, radius 14. Variants:
+ *  - padded:    padding 14
+ *  - flush:     padding 0; children are rows separated by 1pt divider lines
+ *  - dashedDev: 1pt dashed border (developer card), padding 14
+ */
+export function Card({
+  variant = 'padded',
+  style,
+  children,
+}: {
+  variant?: 'padded' | 'flush' | 'dashedDev';
+  style?: StyleProp<ViewStyle>;
+  children: ReactNode;
+}) {
   return (
     <View
       style={[
         styles.base,
-        {
-          backgroundColor: isHighlight ? t.highlightBg : t.surface,
-          borderColor: isHighlight ? t.highlightBorder : t.border,
-        },
+        variant !== 'flush' && styles.padded,
+        variant === 'dashedDev' && styles.dashed,
         style,
-      ]}
-      {...rest}
-    />
+      ]}>
+      {children}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
+    backgroundColor: colors.surface,
     borderRadius: 14,
+  },
+  padded: {
+    padding: 14,
+  },
+  dashed: {
     borderWidth: 1,
-    overflow: 'hidden',
-    padding: 16,
+    borderColor: colors.dashed,
   },
 });

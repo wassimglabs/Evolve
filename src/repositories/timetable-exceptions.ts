@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import { getDb } from '@/db/client';
+import { notify } from '@/db/store';
 import type { TimetableException, TimetableExceptionInput } from '@/db/types';
 import { nowIso } from '@/lib/date';
 
@@ -22,6 +23,7 @@ export async function createTimetableException(
     exception.note,
     exception.created_at,
   );
+  notify('timetable');
   return exception;
 }
 
@@ -48,9 +50,11 @@ export async function updateTimetableException(
     `UPDATE timetable_exceptions SET ${sets.map(([column]) => `${column} = ?`).join(', ')} WHERE id = ?;`,
     [...sets.map(([, value]) => value), id],
   );
+  notify('timetable');
 }
 
 export async function deleteTimetableException(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(`DELETE FROM timetable_exceptions WHERE id = ?;`, id);
+  notify('timetable');
 }

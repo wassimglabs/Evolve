@@ -34,6 +34,8 @@ export type Habit = {
   id: string;
   name: string;
   category: string;
+  /** Comma-separated ISO weekdays the habit is scheduled on ('1,2,3,4,5,6,7'; 1 = Monday). */
+  days: string;
   /** e.g. 'none' | 'brief' | 'maintain'. Free-form for now. */
   min_target: string;
   /** e.g. 'full' | 'custom:<label>'. Free-form for now. */
@@ -87,6 +89,52 @@ export type ConnectedAccount = {
   connected_at: string;
 };
 
+export type Lane = {
+  id: string;
+  weekly_min_minutes: number;
+  created_at: string;
+};
+
+export type Task = {
+  id: string;
+  title: string;
+  lane: string;
+  /** Local 'YYYY-MM-DD' or null. */
+  due_date: string | null;
+  /** Minutes, or null when unknown. */
+  est_minutes: number | null;
+  /** Set when the task is placed on Today. */
+  scheduled_date: string | null;
+  /** Minutes from midnight, or null when placed without a time. */
+  scheduled_start_min: number | null;
+  /** SQLite boolean. */
+  done: 0 | 1;
+  /** e.g. 'coach' | null. */
+  source: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Job = {
+  id: string;
+  title: string;
+  company: string;
+  link: string | null;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ContentIdea = {
+  id: string;
+  title: string;
+  body: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
 /** Insert payloads: generated fields (id, created_at) are omitted, and
  * created_at timestamps are set by the repositories. */
 export type TimetableEntryInput = Omit<TimetableEntry, 'id' | 'created_at'>;
@@ -94,3 +142,6 @@ export type TimetableExceptionInput = Omit<TimetableException, 'id' | 'created_a
 export type HabitInput = Omit<Habit, 'id' | 'archived' | 'created_at'>;
 export type HabitLogInput = Omit<HabitLog, 'id' | 'created_at'>;
 export type DailyCheckinInput = Omit<DailyCheckin, 'id' | 'created_at'>;
+export type TaskInput = Omit<Task, 'id' | 'done' | 'source' | 'created_at' | 'updated_at'>;
+export type JobInput = Omit<Job, 'id' | 'created_at' | 'updated_at'>;
+export type ContentIdeaInput = Omit<ContentIdea, 'id' | 'created_at' | 'updated_at'>;

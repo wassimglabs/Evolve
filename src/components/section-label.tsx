@@ -1,22 +1,17 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
-import { Text } from '@/components/text';
-import { useTheme } from '@/theme/use-theme';
+import { colors } from '@/theme/tokens';
+import { fonts } from '@/theme/fonts';
 
-export function SectionLabel({ label }: { label: string }) {
-  const t = useTheme();
-
-  return (
-    <View style={styles.section}>
-      <Text variant="caption" style={{ color: t.muted, letterSpacing: 0.7, textTransform: 'uppercase' }}>
-        {label}
-      </Text>
-    </View>
-  );
+/** 13/600 muted label; pair it with the card below it inside a gap-8 column. */
+export function SectionLabel({ children }: { children: string }) {
+  return <Text style={styles.label}>{children}</Text>;
 }
 
 const styles = StyleSheet.create({
-  section: {
-    paddingTop: 8,
+  label: {
+    fontSize: 13,
+    fontFamily: fonts.interSemiBold,
+    color: colors.muted,
   },
 });

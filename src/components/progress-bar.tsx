@@ -1,28 +1,27 @@
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
-import { useTheme } from '@/theme/use-theme';
+import { colors } from '@/theme/tokens';
 
-export function ProgressBar({ value, max = 1 }: { value: number; max?: number }) {
-  const t = useTheme();
-  const ratio = Math.max(0, Math.min(value / Math.max(max, 1), 1));
+/** height 8, radius 4, track colors.border; pass style={{ flex: 1 }} in rows. */
+export function ProgressBar({ ratio, color, style }: { ratio: number; color: string; style?: StyleProp<ViewStyle> }) {
+  const clamped = Math.min(Math.max(ratio, 0), 1);
 
   return (
-    <View style={[styles.track, { backgroundColor: t.surface2, borderColor: t.border }]}>
-      <View style={[styles.fill, { width: `${ratio * 100}%`, backgroundColor: t.accent }]} />
+    <View style={[styles.track, style]}>
+      <View style={[styles.fill, { width: `${clamped * 100}%`, backgroundColor: color }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   track: {
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 10,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.border,
     overflow: 'hidden',
-    width: '100%',
   },
   fill: {
-    borderRadius: 8,
-    height: '100%',
+    height: 8,
+    borderRadius: 4,
   },
 });

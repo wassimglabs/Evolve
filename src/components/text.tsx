@@ -1,22 +1,9 @@
-import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
+import { Text as RNText, type TextProps } from 'react-native';
 
-import { fontFamilies, fontSizes } from '@/theme/tokens';
-import { useTheme } from '@/theme/use-theme';
-
-export type TextProps = RNTextProps & {
-  variant?: 'title' | 'heading' | 'body' | 'muted' | 'caption' | 'small';
-};
-
-export function Text({ variant = 'body', style, ...rest }: TextProps) {
-  const t = useTheme();
-  const palette = {
-    title: { color: t.text, fontFamily: fontFamilies.title, fontSize: fontSizes.h1, lineHeight: 38 },
-    heading: { color: t.text, fontFamily: fontFamilies.bodySemiBold, fontSize: fontSizes.h2, lineHeight: 22 },
-    body: { color: t.text, fontFamily: fontFamilies.body, fontSize: fontSizes.body, lineHeight: 22 },
-    muted: { color: t.muted, fontFamily: fontFamilies.body, fontSize: fontSizes.body, lineHeight: 22 },
-    caption: { color: t.muted, fontFamily: fontFamilies.body, fontSize: fontSizes.small, lineHeight: 18 },
-    small: { color: t.text, fontFamily: fontFamilies.body, fontSize: fontSizes.micro, lineHeight: 16 },
-  } as const;
-
-  return <RNText style={[palette[variant], style]} {...rest} />;
+/** Shared Text: caps Dynamic Type in one place so layouts wrap or ellipsize
+ * instead of clipping. cap 1.2 for tab labels, tags, chips, segmented labels,
+ * buttons, status pills, big numbers and tile labels; 1.35 (default) for
+ * body/caption text. An explicit maxFontSizeMultiplier prop still wins. */
+export function Text({ cap = 1.35, ...props }: TextProps & { cap?: number }) {
+  return <RNText maxFontSizeMultiplier={cap} {...props} />;
 }

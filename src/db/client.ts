@@ -2,6 +2,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { openDatabaseAsync } from 'expo-sqlite';
 
 import { runMigrations } from './migrations';
+import { notify } from './store';
 
 const DATABASE_NAME = 'evolve.db';
 
@@ -23,7 +24,7 @@ async function open(): Promise<SQLiteDatabase> {
   return db;
 }
 
-/** Deletes all data rows; keeps the schema and applied migrations. */
+/** Deletes all data rows; keeps the schema, applied migrations, the 4 lanes and settings. */
 export async function wipeAllData(): Promise<void> {
   const db = await getDb();
   await db.withTransactionAsync(async () => {
@@ -32,8 +33,17 @@ export async function wipeAllData(): Promise<void> {
     await db.runAsync(`DELETE FROM habit_logs;`);
     await db.runAsync(`DELETE FROM habits;`);
     await db.runAsync(`DELETE FROM daily_checkins;`);
-    await db.runAsync(`DELETE FROM settings;`);
+    await db.runAsync(`DELETE FROM tasks;`);
+    await db.runAsync(`DELETE FROM jobs;`);
+    await db.runAsync(`DELETE FROM content_ideas;`);
   });
+  notify('timetable');
+  notify('habits');
+  notify('habit_logs');
+  notify('checkins');
+  notify('tasks');
+  notify('jobs');
+  notify('ideas');
 }
 
 export type TableRowCounts = {

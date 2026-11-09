@@ -1,6 +1,15 @@
 import { useSyncExternalStore } from 'react';
 
-export type StoreTopic = 'tasks' | 'habits' | 'habit_logs' | 'checkins' | 'jobs' | 'timetable';
+export type StoreTopic =
+  | 'tasks'
+  | 'habits'
+  | 'habit_logs'
+  | 'checkins'
+  | 'jobs'
+  | 'timetable'
+  | 'ideas'
+  | 'lanes'
+  | 'settings';
 
 type Listener = () => void;
 
@@ -11,6 +20,9 @@ const listeners: Record<StoreTopic, Set<Listener>> = {
   checkins: new Set(),
   jobs: new Set(),
   timetable: new Set(),
+  ideas: new Set(),
+  lanes: new Set(),
+  settings: new Set(),
 };
 
 const topicState: Partial<Record<StoreTopic, unknown>> = {};

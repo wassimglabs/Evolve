@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 
 import { getDb } from '@/db/client';
+import { notify } from '@/db/store';
 import type { DailyCheckin, DailyCheckinInput } from '@/db/types';
 import { nowIso } from '@/lib/date';
 
@@ -20,6 +21,7 @@ export async function createDailyCheckin(input: DailyCheckinInput): Promise<Dail
     checkin.note,
     checkin.created_at,
   );
+  notify('checkins');
   return checkin;
 }
 
@@ -44,9 +46,11 @@ export async function updateDailyCheckin(
     `UPDATE daily_checkins SET ${sets.map(([column]) => `${column} = ?`).join(', ')} WHERE id = ?;`,
     [...sets.map(([, value]) => value), id],
   );
+  notify('checkins');
 }
 
 export async function deleteDailyCheckin(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(`DELETE FROM daily_checkins WHERE id = ?;`, id);
+  notify('checkins');
 }

@@ -1,36 +1,45 @@
 import { StyleSheet, View } from 'react-native';
 
 import { Text } from '@/components/text';
-import { useTheme } from '@/theme/use-theme';
+import { colors } from '@/theme/tokens';
+import { fonts } from '@/theme/fonts';
 
-export type LaneId = 'study' | 'solven' | 'career' | 'life';
+export type LaneKey = 'study' | 'solven' | 'career' | 'life';
 
-export function Tag({ label, lane }: { label: string; lane: LaneId }) {
-  const t = useTheme();
-  const laneColors: Record<LaneId, { bg: string; text: string }> = {
-    study: { bg: t.laneStudy + '22', text: t.laneStudy },
-    solven: { bg: t.laneSolven + '22', text: t.laneSolven },
-    career: { bg: t.laneCareer + '22', text: t.laneCareer },
-    life: { bg: t.laneLife + '22', text: t.laneLife },
-  };
+const LABELS: Record<LaneKey, string> = {
+  study: 'Study',
+  solven: 'Solven',
+  career: 'Career',
+  life: 'Life',
+};
 
-  const colors = laneColors[lane] ?? laneColors.study;
+/** The lane pill: 11.5/500, radius 8, paddingV 2, paddingH 8. */
+export function Tag({ lane }: { lane: LaneKey }) {
+  const laneColors = colors.lanes[lane];
 
   return (
-    <View style={[styles.tag, { backgroundColor: colors.bg, borderColor: colors.text + '55' }]}>
-      <Text variant="caption" style={{ color: colors.text, fontWeight: '600' }}>
-        {label}
+    <View style={[styles.pill, { backgroundColor: laneColors.bg }]}>
+      <Text style={[styles.label, { color: laneColors.fg }]} numberOfLines={1}>
+        {LABELS[lane]}
       </Text>
     </View>
   );
 }
 
+export function laneLabelText(lane: LaneKey): string {
+  return LABELS[lane];
+}
+
 const styles = StyleSheet.create({
-  tag: {
-    alignSelf: 'flex-start',
-    borderRadius: 999,
-    borderWidth: 1,
+  pill: {
+    borderRadius: 8,
+    paddingVertical: 2,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    alignSelf: 'flex-start',
+    flexShrink: 0,
+  },
+  label: {
+    fontSize: 11.5,
+    fontFamily: fonts.interMedium,
   },
 });

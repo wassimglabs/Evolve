@@ -1,210 +1,343 @@
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/button';
-import { Card } from '@/components/card';
 import { EmptyState } from '@/components/empty-state';
-import { ListRow } from '@/components/list-row';
+import { Icon } from '@/components/icon';
+import { LargeHeader } from '@/components/large-header';
 import { ProgressRing } from '@/components/progress-ring';
 import { Screen } from '@/components/screen';
-import { SegmentedControl } from '@/components/segmented-control';
+import { Segmented } from '@/components/segmented';
 import { Tag } from '@/components/tag';
 import { Text } from '@/components/text';
-import { TimelineRow } from '@/components/timeline-row';
-import { getSettingByKey, updateSetting } from '@/repositories/settings';
-import { listHabitLogs } from '@/repositories/habit-logs';
-import { listHabits } from '@/repositories/habits';
-import { listTimetableEntries } from '@/repositories/timetable-entries';
-import { haptics } from '@/lib/haptics';
-import { isoDayOfWeek, timeToMinutes, todayDateString } from '@/lib/date';
+import { useTodayModel } from '@/hooks/use-today-model';
+import { useSetting } from '@/hooks/use-setting';
+import { colors } from '@/theme/tokens';
+import { fonts } from '@/theme/fonts';
 
-const dayModes = ['Normal', 'Low energy', 'Recovery'] as const;
-type DayMode = (typeof dayModes)[number];
+const DAY_MODES: readonly string[] = ['Normal', 'Low energy', 'Recovery'];
 
-function mapMode(value: string | null): DayMode {
-  if (value === 'low') return 'Low energy';
-  if (value === 'recovery') return 'Recovery';
-  return 'Normal';
-}
-
-function toStoredMode(value: DayMode): 'normal' | 'low' | 'recovery' {
-  if (value === 'Low energy') return 'low';
-  if (value === 'Recovery') return 'recovery';
+function toStoredMode(label: string): 'normal' | 'low' | 'recovery' {
+  if (label === 'Low energy') return 'low';
+  if (label === 'Recovery') return 'recovery';
   return 'normal';
 }
 
-function laneForKey(key: string): 'study' | 'solven' | 'career' | 'life' {
-  if (key === 'career') return 'career';
-  if (key === 'life') return 'life';
-  if (key === 'study') return 'study';
-  return 'solven';
+function modeLabel(stored: string): string {
+  if (stored === 'low') return 'Low energy';
+  if (stored === 'recovery') return 'Recovery';
+  return 'Normal';
 }
 
 export default function TodayScreen() {
-  const todayString = todayDateString();
-  const [mode, setMode] = useState<DayMode>('Normal');
-  const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      try {
-        const [entries, habits, logs, savedMode] = await Promise.all([
-          listTimetableEntries(),
-          listHabits(),
-          listHabitLogs(),
-          getSettingByKey('day_mode'),
-        ]);
-
-        if (!active) return;
-
-        const todayEntries = entries.filter((entry) => entry.day_of_week === isoDayOfWeek());
-        const habitLogs = new Set(logs.filter((log) => log.date === todayString).map((log) => log.habit_id));
-
-        const list = [
-          ...todayEntries.map((entry) => ({
-            id: entry.id,
-            title: entry.title,
-            lane: laneForKey(entry.kind || 'study'),
-            startMin: entry.start_min,
-            endMin: entry.end_min,
-            kind: 'class',
-            done: false,
-            subtitle: `${entry.start_min / 60}:00–${entry.end_min / 60}:00`,
-          })),
-          ...habits.map((habit) => ({
-            id: habit.id,
-            title: habit.name,
-            lane: laneForKey(habit.category || 'solven'),
-            startMin: habit.preferred_time ? timeToMinutes(habit.preferred_time) : 540,
-            endMin: habit.preferred_time ? timeToMinutes(habit.preferred_time) + 30 : 570,
-            kind: 'habit',
-            done: habitLogs.has(habit.id),
-            subtitle: habit.category,
-          })),
-        ].sort((a, b) => a.startMin - b.startMin);
-
-        setItems(list);
-
-        if (savedMode) {
-          setMode(mapMode(savedMode));
-        }
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [todayString]);
-
-  const doneCount = useMemo(() => items.filter((item) => item.done).length, [items]);
-  const totalCount = Math.max(items.length, 1);
-
-  const nextItem = useMemo(() => {
-    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
-    return [...items].sort((a, b) => a.startMin - b.startMin).find((item) => item.startMin >= nowMinutes) ?? items[0] ?? null;
-  }, [items]);
-
-  const dueSoon = useMemo(() => items.slice(0, 2).map((item) => ({ title: item.title, lane: item.lane })), [items]);
-
-  const handleComplete = async (item: any) => {
-    haptics.success();
-    setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, done: true } : entry)));
-
-    if (item.kind === 'habit') {
-      try {
-        const { createHabitLog } = await import('@/repositories/habit-logs');
-        await createHabitLog({
-          habit_id: item.id,
-          date: todayString,
-          level: 'target',
-          duration_min: 30,
-          note: 'completed from Today',
-        });
-      } catch {
-        setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, done: false } : entry)));
-      }
-    }
-  };
-
-  const handleDayModeChange = async (nextMode: DayMode) => {
-    setMode(nextMode);
-    haptics.selection();
-    await updateSetting('day_mode', toStoredMode(nextMode));
-  };
+  const { overline, rows, dueSoon, progress, error } = useTodayModel();
+  const [storedMode, setStoredMode] = useSetting('day_mode', 'normal');
 
   return (
-    <Screen title="Today" rightSlot={<ProgressRing value={doneCount} max={totalCount} label={`${doneCount}/${totalCount}`} />}>
-      <View style={styles.overviewRow}>
-        <Text variant="caption" style={{ color: '#A3AAB8' }}>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</Text>
+    <Screen>
+      <LargeHeader
+        overline={overline}
+        title="Today"
+        right={
+          <View style={styles.headerActions}>
+            <View style={styles.progressPill}>
+              <ProgressRing done={progress.done} total={progress.total} />
+              <View>
+                <Text style={styles.progressValue} numberOfLines={1}>{`${progress.done} of ${progress.total}`}</Text>
+                <Text style={styles.progressLabel} numberOfLines={1}>
+                  tasks done
+                </Text>
+              </View>
+            </View>
+            <Button
+              variant="primary"
+              size="compact"
+              onPress={() => router.push({ pathname: '/me/data', params: { type: 'Tasks' } })}>
+              Add task
+            </Button>
+          </View>
+        }
+      />
+      {error ? <Text style={styles.loadError}>Could not load today: {error.message}</Text> : null}
+
+      <Segmented
+        variant="modeToday"
+        options={DAY_MODES}
+        value={modeLabel(storedMode)}
+        onChange={(next) => setStoredMode(toStoredMode(next))}
+      />
+
+      <View style={styles.dueRow}>
+        {dueSoon.map((card) => (
+          <View style={styles.dueCard} key={card.id}>
+            <Text style={styles.dueTitle} numberOfLines={2} ellipsizeMode="tail">
+              {card.title}
+            </Text>
+            <Text style={styles.dueSubtitle} numberOfLines={2} ellipsizeMode="tail">
+              {card.subtitle}
+            </Text>
+          </View>
+        ))}
       </View>
 
-      <SegmentedControl value={mode} options={dayModes} onChange={handleDayModeChange} />
+      <View style={styles.timeline}>
+        {rows.map((row) => {
+          switch (row.kind) {
+            case 'class':
+              return <ClassRowView key={row.id} row={row} />;
+            case 'placed':
+              return <PlacedRowView key={row.id} row={row} />;
+            case 'nextUp':
+              return <NextUpRowView key={row.id} row={row} />;
+            case 'checkin':
+              return <CheckinRowView key={row.id} row={row} />;
+          }
+        })}
+      </View>
 
-      {dueSoon.length > 0 ? (
-        <Card>
-          <Text variant="heading">Due soon</Text>
-          {dueSoon.map(({ title, lane }) => (
-            <ListRow key={title} title={title} subtitle={lane} trailing={<Tag label={lane} lane={lane} />} chevron />
-          ))}
-        </Card>
+      {rows.length === 0 ? (
+        <EmptyState title="Nothing scheduled" caption="Add classes in Plan to see your day" />
       ) : null}
-
-      <Card>
-        <Text variant="heading">Timeline</Text>
-        {loading ? (
-          <View style={styles.skeletonStack}>
-            <View style={styles.skeletonLine} />
-            <View style={styles.skeletonLine} />
-            <View style={styles.skeletonLine} />
-          </View>
-        ) : items.length > 0 ? (
-          <>
-            {nextItem ? (
-              <Card tone="highlight" style={styles.nextCard}>
-                <Text variant="caption" style={{ color: '#77D9B2' }}>Next up</Text>
-                <Text variant="heading">{nextItem.title}</Text>
-                <Text variant="caption">{nextItem.kind === 'habit' ? 'Habit' : 'Scheduled'} · {new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</Text>
-              </Card>
-            ) : null}
-
-            {items.map((item) => (
-              <Pressable key={item.id} onPress={() => void handleComplete(item)}>
-                <TimelineRow time={String(Math.floor(item.startMin / 60)).padStart(2, '0') + ':' + String(item.startMin % 60).padStart(2, '0')} title={item.title} subtitle={item.subtitle} lane={item.lane} variant={item.kind === 'habit' ? 'class' : 'class'} />
-              </Pressable>
-            ))}
-          </>
-        ) : (
-          <EmptyState title="Nothing scheduled" message="Add a habit or timetable entry to build your day view." />
-        )}
-      </Card>
-
-      <Button title="Evening check-in" onPress={() => router.push('/checkin' as any)} />
     </Screen>
   );
 }
 
+function ClassRowView({ row }: { row: Extract<ReturnType<typeof useTodayModel>['rows'][number], { kind: 'class' }> }) {
+  return (
+    <View style={styles.timelineRow}>
+      <Text style={styles.gutter}>{row.time}</Text>
+      <View style={[styles.block, row.past ? styles.classPast : styles.classSolid]}>
+        <Text style={row.past ? styles.classTitlePast : styles.classTitle} numberOfLines={2} ellipsizeMode="tail">
+          {row.title}
+        </Text>
+        <Tag lane={row.lane} />
+      </View>
+    </View>
+  );
+}
+
+function PlacedRowView({ row }: { row: Extract<ReturnType<typeof useTodayModel>['rows'][number], { kind: 'placed' }> }) {
+  return (
+    <View style={styles.timelineRow}>
+      <Text style={styles.gutter}>{row.time}</Text>
+      <View style={[styles.block, styles.placed, row.done ? styles.placedDone : null]}>
+        <View style={styles.placedLeft}>
+          {row.done ? <Icon name="checkCircle" size={16} color={colors.accent} strokeWidth={2} /> : null}
+          <Text style={row.done ? styles.placedTitleDone : styles.placedTitle} numberOfLines={2} ellipsizeMode="tail">
+            {row.title}
+          </Text>
+        </View>
+        <Tag lane={row.lane} />
+      </View>
+    </View>
+  );
+}
+
+function NextUpRowView({ row }: { row: Extract<ReturnType<typeof useTodayModel>['rows'][number], { kind: 'nextUp' }> }) {
+  return (
+    <View style={[styles.timelineRow, styles.nextRow]}>
+      <Text style={[styles.gutter, styles.gutterNext]}>{row.time}</Text>
+      <View style={[styles.nextBlock, { backgroundColor: colors.highlight.amber.bg, borderColor: colors.highlight.amber.border }]}>
+        <View style={styles.nextTop}>
+          <Text style={styles.nextCaption} numberOfLines={1} ellipsizeMode="tail">
+            {row.caption}
+          </Text>
+          <Tag lane={row.lane} />
+        </View>
+        <Text style={styles.nextTitle} numberOfLines={2} ellipsizeMode="tail">
+          {row.title}
+        </Text>
+        <View style={styles.nextButtons}>
+          <Button
+            variant="primaryAmber"
+            size="block"
+            onPress={() => router.push({ pathname: '/me/data', params: { type: row.itemType === 'task' ? 'Tasks' : 'Habits' } })}>
+            Manage
+          </Button>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function CheckinRowView({ row }: { row: Extract<ReturnType<typeof useTodayModel>['rows'][number], { kind: 'checkin' }> }) {
+  return (
+    <View style={styles.timelineRow}>
+      <Text style={styles.gutter}>{row.time}</Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/checkin')}
+        style={({ pressed }) => [styles.block, styles.checkinRow, pressed && { opacity: 0.85 }]}>
+        <Text style={styles.classTitle} numberOfLines={2} ellipsizeMode="tail">
+          {row.title}
+        </Text>
+        <Icon name="chevron" size={18} color={colors.muted} strokeWidth={2} />
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  overviewRow: {
-    paddingTop: 4,
-  },
-  nextCard: {
-    marginBottom: 12,
-  },
-  skeletonStack: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
-    paddingTop: 8,
   },
-  skeletonLine: {
-    backgroundColor: '#1D222B',
-    borderRadius: 8,
-    height: 16,
-    width: '100%',
+  loadError: { color: colors.danger.text, fontSize: 13, fontFamily: fonts.inter },
+  progressPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  progressValue: {
+    fontSize: 15,
+    fontFamily: fonts.interSemiBold,
+    color: colors.text,
+    lineHeight: 18,
+    fontVariant: ['tabular-nums'],
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontFamily: fonts.inter,
+    color: colors.muted,
+    lineHeight: 14,
+  },
+  dueRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dueCard: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 12,
+    gap: 2,
+  },
+  dueTitle: {
+    fontSize: 13.5,
+    fontFamily: fonts.interMedium,
+    color: colors.text,
+  },
+  dueSubtitle: {
+    fontSize: 12,
+    fontFamily: fonts.inter,
+    color: colors.muted,
+  },
+  timeline: {
+    gap: 8,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  nextRow: {
+    alignItems: 'flex-start',
+  },
+  gutter: {
+    minWidth: 44,
+    flexShrink: 0,
+    fontSize: 12,
+    fontFamily: fonts.inter,
+    color: colors.muted,
+    fontVariant: ['tabular-nums'],
+  },
+  gutterNext: {
+    color: colors.text,
+    fontFamily: fonts.interSemiBold,
+    paddingTop: 14,
+  },
+  block: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  classSolid: {
+    backgroundColor: colors.surface,
+  },
+  classPast: {
+    backgroundColor: colors.pastRow,
+  },
+  classTitle: {
+    fontSize: 14,
+    fontFamily: fonts.interMedium,
+    color: colors.text,
+    flexShrink: 1,
+  },
+  classTitlePast: {
+    fontSize: 14,
+    fontFamily: fonts.inter,
+    color: colors.muted,
+    flexShrink: 1,
+  },
+  placed: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: colors.dashed,
+  },
+  placedDone: {
+    borderColor: colors.border,
+  },
+  placedLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  placedTitle: {
+    fontSize: 14,
+    fontFamily: fonts.interMedium,
+    color: colors.text,
+    flexShrink: 1,
+  },
+  placedTitleDone: {
+    fontSize: 14,
+    fontFamily: fonts.inter,
+    color: colors.muted,
+    flexShrink: 1,
+  },
+  nextBlock: {
+    flex: 1,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  nextTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  nextCaption: {
+    fontSize: 12,
+    fontFamily: fonts.interSemiBold,
+    color: colors.lanes.career.fg,
+    flexShrink: 1,
+  },
+  nextTitle: {
+    fontSize: 16,
+    fontFamily: fonts.interSemiBold,
+    color: colors.text,
+  },
+  nextButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  checkinRow: {
+    backgroundColor: colors.surface,
   },
 });

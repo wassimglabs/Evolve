@@ -1,54 +1,26 @@
-import { StyleSheet, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
-import { Text } from '@/components/text';
-import { useTheme } from '@/theme/use-theme';
+import { colors } from '@/theme/tokens';
 
-export function ProgressRing({
-  value,
-  max,
-  label,
-}: {
-  value: number;
-  max: number;
-  label?: string;
-}) {
-  const t = useTheme();
-  const clamped = Math.min(Math.max(value / Math.max(max, 1), 0), 1);
-  const radius = 22;
-  const circumference = 2 * Math.PI * radius;
-  const dash = circumference * clamped;
+/** Progress ring, size 34 default, viewBox 0 0 36 36, track + round-cap arc. */
+export function ProgressRing({ done, total, size = 34 }: { done: number; total: number; size?: number }) {
+  const circ = 2 * Math.PI * 14;
+  const ratio = total === 0 ? 0 : done / total;
 
   return (
-    <View style={styles.wrapper}>
-      <Svg width={60} height={60} viewBox="0 0 60 60">
-        <Circle cx={30} cy={30} r={radius} stroke={t.border} strokeWidth={6} fill="transparent" />
-        <Circle
-          cx={30}
-          cy={30}
-          r={radius}
-          stroke={t.accent}
-          strokeWidth={6}
-          fill="transparent"
-          strokeDasharray={`${dash} ${circumference}`}
-          strokeLinecap="round"
-          transform="rotate(-90 30 30)"
-        />
-      </Svg>
-      {label ? (
-        <Text variant="caption" style={{ position: 'absolute', color: t.text, fontWeight: '600' }}>
-          {label}
-        </Text>
-      ) : null}
-    </View>
+    <Svg width={size} height={size} viewBox="0 0 36 36">
+      <Circle cx={18} cy={18} r={14} stroke={colors.border} strokeWidth={4} fill="none" />
+      <Circle
+        cx={18}
+        cy={18}
+        r={14}
+        stroke={colors.accent}
+        strokeWidth={4}
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray={`${circ * ratio} ${circ}`}
+        transform="rotate(-90 18 18)"
+      />
+    </Svg>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 60,
-    width: 60,
-  },
-});

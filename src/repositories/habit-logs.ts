@@ -1,11 +1,11 @@
 import { randomUUID } from 'expo-crypto';
 
 import { getDb } from '@/db/client';
+import { notify } from '@/db/store';
 import type { HabitLog, HabitLogInput } from '@/db/types';
 import { nowIso } from '@/lib/date';
 
-/** habit_logs is INSERT-ONLY by convention: history is never rewritten.
- * update/delete exist for tooling parity but are not called from the UI. */
+/** Habit logs are user records and can be corrected or deleted from the data manager. */
 
 export async function createHabitLog(input: HabitLogInput): Promise<HabitLog> {
   const log: HabitLog = { id: randomUUID(), created_at: nowIso(), ...input };
@@ -21,6 +21,7 @@ export async function createHabitLog(input: HabitLogInput): Promise<HabitLog> {
     log.note,
     log.created_at,
   );
+  notify('habit_logs');
   return log;
 }
 
@@ -44,9 +45,11 @@ export async function updateHabitLog(id: string, patch: Partial<HabitLogInput>):
     `UPDATE habit_logs SET ${sets.map(([column]) => `${column} = ?`).join(', ')} WHERE id = ?;`,
     [...sets.map(([, value]) => value), id],
   );
+  notify('habit_logs');
 }
 
 export async function deleteHabitLog(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync(`DELETE FROM habit_logs WHERE id = ?;`, id);
+  notify('habit_logs');
 }
