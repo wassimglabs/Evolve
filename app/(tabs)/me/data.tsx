@@ -763,7 +763,7 @@ export default function DataScreen() {
           caption={type === 'Habit logs' && !data.habits.some((habit) => habit.archived === 0) ? 'Create a habit first, then add its logs.' : type === 'Exceptions' ? 'Cancel a recurring timetable entry for a specific date.' : 'Add one here to start using your own data.'}
           action={
             type === 'Habit logs' && !data.habits.some((habit) => habit.archived === 0)
-              ? { label: 'Manage habits', onPress: () => router.push({ pathname: '/me/data', params: { type: 'Habits' } }) }
+              ? { label: 'Manage habits', onPress: () => setType('Habits') }
               : { label: `Add ${itemLabel(type)}`, onPress: openNew }
           }
         />
