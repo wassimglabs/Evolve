@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
+import { DateField, TimeField } from '@/components/date-time-field';
 import { Text } from '@/components/text';
 import { createHabit, updateHabit } from '@/repositories/habits';
 import { createTask, updateTask } from '@/repositories/tasks';
@@ -176,10 +177,15 @@ export function TaskHabitForm({
         {type === 'Tasks' ? (
           <>
             <ChoiceField label="Lane" options={LANES} value={values.lane} onChange={(lane) => setValues({ ...values, lane })} />
-            <Field label="Due date (YYYY-MM-DD)" value={values.dueDate} onChangeText={(dueDate) => setValues({ ...values, dueDate })} placeholder="Optional" />
+            <DateField label="Due date" value={values.dueDate} onChangeText={(dueDate) => setValues({ ...values, dueDate })} />
             <Field label="Estimate (minutes)" value={values.estimate} onChangeText={(estimate) => setValues({ ...values, estimate })} keyboardType="number-pad" placeholder="Optional" />
-            <Field label="Scheduled date (YYYY-MM-DD)" value={values.scheduledDate} onChangeText={(scheduledDate) => setValues({ ...values, scheduledDate })} placeholder="Optional" />
-            <Field label="Scheduled time (HH:MM)" value={values.scheduledTime} onChangeText={(scheduledTime) => setValues({ ...values, scheduledTime })} placeholder="Optional" />
+            <DateField label="Scheduled date" value={values.scheduledDate} onChangeText={(scheduledDate) => setValues({ ...values, scheduledDate })} />
+            <TimeField
+              label="Scheduled time"
+              value={values.scheduledTime}
+              onChangeText={(scheduledTime) => setValues({ ...values, scheduledTime })}
+              error={values.scheduledTime && !values.scheduledDate ? 'Choose a scheduled date before setting a time.' : undefined}
+            />
           </>
         ) : (
           <>
@@ -210,7 +216,7 @@ export function TaskHabitForm({
             </View>
             <Field label="Minimum target" value={values.minTarget} onChangeText={(minTarget) => setValues({ ...values, minTarget })} placeholder="brief" />
             <Field label="Full target" value={values.fullTarget} onChangeText={(fullTarget) => setValues({ ...values, fullTarget })} placeholder="full" />
-            <Field label="Preferred time (HH:MM)" value={values.preferredTime} onChangeText={(preferredTime) => setValues({ ...values, preferredTime })} placeholder="Optional" />
+            <TimeField label="Preferred time" value={values.preferredTime} onChangeText={(preferredTime) => setValues({ ...values, preferredTime })} />
           </>
         )}
         <Button variant="primary" disabled={saving} onPress={() => void save()}>

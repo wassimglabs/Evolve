@@ -4,6 +4,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from
 
 import { Button } from '@/components/button';
 import { Card } from '@/components/card';
+import { DateField, TimeField } from '@/components/date-time-field';
 import { EmptyState } from '@/components/empty-state';
 import { LargeHeader } from '@/components/large-header';
 import { Screen } from '@/components/screen';
@@ -133,7 +134,7 @@ function newForm(type: DataType): FormState {
     link: '',
     status: 'saved',
     body: '',
-    date: todayDateString(),
+    date: type === 'Exceptions' ? '' : todayDateString(),
     energy: '3',
     focus: '3',
     mood: '3',
@@ -775,7 +776,7 @@ export default function DataScreen() {
               ) : null}
               {form.type === 'Check-ins' ? (
                 <>
-                  <Field label="Date (YYYY-MM-DD)" value={form.date} onChangeText={(date) => setForm({ ...form, date })} />
+                  <DateField label="Date" value={form.date} onChangeText={(date) => setForm({ ...form, date })} required />
                   <Field label="Energy (1–5)" value={form.energy} onChangeText={(energy) => setForm({ ...form, energy })} keyboardType="number-pad" />
                   <Field label="Focus (1–5)" value={form.focus} onChangeText={(focus) => setForm({ ...form, focus })} keyboardType="number-pad" />
                   <Field label="Mood (1–5)" value={form.mood} onChangeText={(mood) => setForm({ ...form, mood })} keyboardType="number-pad" />
@@ -791,7 +792,7 @@ export default function DataScreen() {
                     value={form.habitId}
                     onChange={(habitId) => setForm({ ...form, habitId })}
                   />
-                  <Field label="Date (YYYY-MM-DD)" value={form.date} onChangeText={(date) => setForm({ ...form, date })} />
+                  <DateField label="Date" value={form.date} onChangeText={(date) => setForm({ ...form, date })} required />
                   <ChoiceField
                     label="Level"
                     options={['skipped', 'min', 'full']}
@@ -826,15 +827,27 @@ export default function DataScreen() {
                     value={WEEKDAYS[form.dayOfWeek - 1]}
                     onChange={(day) => setForm({ ...form, dayOfWeek: WEEKDAYS.indexOf(day as (typeof WEEKDAYS)[number]) + 1 })}
                   />
-                  <Field label="Start time (HH:MM)" value={form.startTime} onChangeText={(startTime) => setForm({ ...form, startTime })} />
-                  <Field label="End time (HH:MM)" value={form.endTime} onChangeText={(endTime) => setForm({ ...form, endTime })} />
+                  <TimeField label="Start time" value={form.startTime} onChangeText={(startTime) => setForm({ ...form, startTime })} required />
+                  <TimeField
+                    label="End time"
+                    value={form.endTime}
+                    onChangeText={(endTime) => setForm({ ...form, endTime })}
+                    required
+                    error={
+                      isTime(form.startTime) &&
+                      isTime(form.endTime) &&
+                      timeToMinutes(form.endTime) <= timeToMinutes(form.startTime)
+                        ? 'End time must be after start time.'
+                        : undefined
+                    }
+                  />
                   <Field label="Location" value={form.location} onChangeText={(location) => setForm({ ...form, location })} placeholder="Optional" />
                   <Field label="Type" value={form.entryKind} onChangeText={(entryKind) => setForm({ ...form, entryKind })} placeholder="class, work, personal" />
                 </>
               ) : null}
               {form.type === 'Exceptions' ? (
                 <>
-                  <Field label="Date (YYYY-MM-DD)" value={form.date} onChangeText={(date) => setForm({ ...form, date })} />
+                  <DateField label="Date" value={form.date} onChangeText={(date) => setForm({ ...form, date })} required />
                   <ChoiceField
                     label="What to cancel"
                     options={['', ...data.timetable.map((entry) => entry.id)]}
