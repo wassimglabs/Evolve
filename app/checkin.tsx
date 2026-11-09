@@ -18,13 +18,22 @@ import { listHabitLogs } from '@/repositories/habit-logs';
 
 export default function CheckInScreen() {
   const insets = useSafeAreaInsets();
-  const [energy, setEnergy] = useState(0);
-  const [focus, setFocus] = useState(0);
-  const [mood, setMood] = useState(0);
-  const [note, setNote] = useState('');
+  const [energyOverride, setEnergyOverride] = useState<number | null>(null);
+  const [focusOverride, setFocusOverride] = useState<number | null>(null);
+  const [moodOverride, setMoodOverride] = useState<number | null>(null);
+  const [noteOverride, setNoteOverride] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
-  const canSave = energy > 0 && focus > 0 && mood > 0;
   const today = todayDateString();
+  const { data: existingCheckin, loading: checkinLoading, error: checkinError } = useDbQuery(
+    async () => (await listDailyCheckins()).find((row) => row.date === today) ?? null,
+    [today],
+    null,
+  );
+  const energy = energyOverride ?? existingCheckin?.energy ?? 0;
+  const focus = focusOverride ?? existingCheckin?.focus ?? 0;
+  const mood = moodOverride ?? existingCheckin?.mood ?? 0;
+  const note = noteOverride ?? existingCheckin?.note ?? '';
+  const canSave = energy > 0 && focus > 0 && mood > 0;
   const { data: habitStatus } = useDbQuery(
     async () => {
       const [habits, logs] = await Promise.all([listHabits(), listHabitLogs()]);
@@ -42,7 +51,7 @@ export default function CheckInScreen() {
   );
 
   async function save() {
-    if (!canSave) return;
+    if (!canSave || checkinLoading || checkinError) return;
     try {
       setSaveError(null);
       const date = today;
@@ -89,30 +98,36 @@ export default function CheckInScreen() {
             {habitStatus.done} of {habitStatus.total} scheduled habits logged today
           </Text>
         </View>
+        {checkinLoading ? <Text style={styles.error}>Loading today&apos;s check-in...</Text> : null}
+        {checkinError ? <Text style={styles.error}>Could not load today&apos;s check-in: {checkinError.message}</Text> : null}
         {saveError ? <Text style={styles.error}>{saveError}</Text> : null}
 
-        <View style={styles.ratings}>
-          <RatingGroup label="Energy" hint="1 low · 5 high" value={energy} onChange={setEnergy} />
-          <RatingGroup label="Focus" hint="1 scattered · 5 sharp" value={focus} onChange={setFocus} />
-          <RatingGroup label="Mood" hint="1 rough · 5 great" value={mood} onChange={setMood} />
-        </View>
+        {checkinLoading ? null : (
+          <>
+            <View style={styles.ratings}>
+              <RatingGroup label="Energy" hint="1 low · 5 high" value={energy} onChange={setEnergyOverride} />
+              <RatingGroup label="Focus" hint="1 scattered · 5 sharp" value={focus} onChange={setFocusOverride} />
+              <RatingGroup label="Mood" hint="1 rough · 5 great" value={mood} onChange={setMoodOverride} />
+            </View>
 
-        <View style={styles.noteField}>
-          <Text style={styles.noteLabel}>
-            Anything unusual?
-            <Text style={styles.optional}> Optional</Text>
-          </Text>
-          <TextInput
-            style={styles.noteInput}
-            value={note}
-            onChangeText={setNote}
-            multiline
-            numberOfLines={3}
-            textAlignVertical="top"
-            placeholder="Add context for this day"
-            placeholderTextColor={colors.muted}
-          />
-        </View>
+            <View style={styles.noteField}>
+              <Text style={styles.noteLabel}>
+                Anything unusual?
+                <Text style={styles.optional}> Optional</Text>
+              </Text>
+              <TextInput
+                style={styles.noteInput}
+                value={note}
+                onChangeText={setNoteOverride}
+                multiline
+                numberOfLines={3}
+                textAlignVertical="top"
+                placeholder="Add context for this day"
+                placeholderTextColor={colors.muted}
+              />
+            </View>
+          </>
+        )}
 
         <View style={styles.spacer} />
 
@@ -120,7 +135,7 @@ export default function CheckInScreen() {
           <Button
             variant="primary"
             size="block"
-            disabled={!canSave}
+            disabled={!canSave || checkinLoading || checkinError !== null}
             style={styles.saveButton}
             labelStyle={styles.saveLabel}
             onPress={() => void save()}>
